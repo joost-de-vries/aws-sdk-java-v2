@@ -1,3 +1,58 @@
+# __2.0.0-preview-9__ __2018-03-20__
+## __AWS SDK for Java v2__
+  - ### Features
+    - Added support for auto-pagination in sync and async clients. A blog post for this feature will be released soon. In the meantime, Please refer to [ScanPaginatorIntegrationTest](https://github.com/aws/aws-sdk-java-v2/blob/2.0.0-preview-9/services/dynamodb/src/it/java/software/amazon/awssdk/services/dynamodb/ScanPaginatorIntegrationTest.java) and [ListObjectsV2PaginatorsIntegrationTest](https://github.com/aws/aws-sdk-java-v2/blob/2.0.0-preview-9/services/s3/src/it/java/software/amazon/awssdk/services/s3/ListObjectsV2PaginatorsIntegrationTest.java) classes for sample code.
+  
+  - ### Bugfixes
+    - Fix default user agent to comply with [RFC 7231](https://tools.ietf.org/html/rfc7231#section-5.5.3). Related to [#80](https://github.com/aws/aws-sdk-java-v2/issues/80)
+    
+## __AWS Lambda__
+  - ### Features
+    - Added latest model for new service features.
+
+# __2.0.0-preview-8__ __2018-02-02__
+## __AWS SDK for Java v2__
+  - ### Features
+    - Added Consumer<Builder> methods to multiple locations where they were previously missing.
+    - Added `SdkClient` base interface that all service clients implement.
+    - Added and standardized `toString` implementations of public data classes.
+    - Adding the following services from re:invent 2017:
+       - Alexa For Business
+       - AWS Migration Hub
+       - AWS Cost Explorer
+       - AWS Cloud9
+       - AWS CloudHSM V2
+       - Amazon Comprehend
+       - AWS Glue
+       - Amazon GuardDuty
+       - Amazon Kinesis Video Streams
+       - AWS Elemental MediaConvert
+       - AWS Elemental MediaLive
+       - AWS Elemental MediaPackage
+       - AWS Elemental MediaStore
+       - AWS Mobile
+       - AmazonMQ
+       - AWS Price List
+       - AWS Resource Groups
+       - Amazon SageMaker
+       - AWS Serverless Application Repository
+       - Amazon Route 53 Auto Naming
+       - Amazon Translate
+       - Amazon WorkMail
+    - Setting `Content-Type` header for streaming requests. Related to [#357](https://github.com/aws/aws-sdk-java-v2/issues/357)
+    - upgrade Netty 4.1.17.Final to 4.1.19.Final
+
+  - ### Bugfixes
+    - Fixed issue where error message in S3 exceptions could be "null" if the exception did not have a modeled type.
+
+## __Amazon CloudWatch__
+  - ### Features
+    - Added pagination configuration to CloudWatch
+
+## __Netty NIO Async HTTP Client__
+  - ### Bugfixes
+    - Fix race condition in the async client causing instability when making multiple concurent requests. Fixes [#202](https://github.com/aws/aws-sdk-java-v2/issues/202)
+
 # __2.0.0-preview-7__ __2017-12-15__
 ## __AWS SDK for Java v2__
   - ### Features

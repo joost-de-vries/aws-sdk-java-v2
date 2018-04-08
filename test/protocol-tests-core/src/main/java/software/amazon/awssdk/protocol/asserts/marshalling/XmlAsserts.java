@@ -18,11 +18,14 @@ package software.amazon.awssdk.protocol.asserts.marshalling;
 import static org.junit.Assert.fail;
 
 import java.io.StringWriter;
+import java.io.Writer;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -71,11 +74,20 @@ public final class XmlAsserts {
     }
 
     private static String formatXml(Document xmlDocument) throws Exception {
-        Transformer transformer = TransformerFactory.newInstance().newTransformer();
+        Transformer transformer = transformerFactory().newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
         StreamResult result = new StreamResult(new StringWriter());
         DOMSource source = new DOMSource(xmlDocument);
         transformer.transform(source, result);
-        return result.getWriter().toString();
+        try (Writer writer = result.getWriter()) {
+            return writer.toString();
+        }
+    }
+
+    private static TransformerFactory transformerFactory() throws TransformerConfigurationException {
+        TransformerFactory factory = TransformerFactory.newInstance();
+        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        factory.setFeature(XMLConstants.ACCESS_EXTERNAL_DTD, false);
+        return factory;
     }
 }

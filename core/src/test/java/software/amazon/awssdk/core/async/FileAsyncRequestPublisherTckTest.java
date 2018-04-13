@@ -15,10 +15,7 @@
 
 package software.amazon.awssdk.core.async;
 
-import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Set;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.tck.TestEnvironment;
 
@@ -38,48 +35,58 @@ public class FileAsyncRequestPublisherTckTest extends org.reactivestreams.tck.Pu
 
     // same as `FileAsyncRequestProvider.DEFAULT_CHUNK_SIZE`:
     final int DEFAULT_CHUNK_SIZE = 16 * 1024;
-    final int ELEMENTS = 1000;
+    final int MAX_ELEMENTS = 1000;
 
-    // mock file system:
-    final FileSystem fs = Jimfs.newFileSystem(Configuration.unix());
-
-    final Path testFile;
-    final Path unreadable;
-
-    public FileAsyncRequestPublisherTckTest() throws IOException {
+    public FileAsyncRequestPublisherTckTest() {
         super(new TestEnvironment());
-        testFile = Files.createFile(fs.getPath("/test-file.tmp"));
-
-        this.unreadable=createUnreadableFile();
-
-        final BufferedWriter writer = Files.newBufferedWriter(testFile);
-
-        final char[] chars = new char[DEFAULT_CHUNK_SIZE];
-        Arrays.fill(chars, 'A');
-
-        for (int i = 0; i < ELEMENTS; i++) {
-            writer.write(chars); // write one chunk
-        }
-    }
-
-    private Path createUnreadableFile() throws IOException {
-        File dne = File.createTempFile("prefix", "suffix");
-        dne.deleteOnExit();
-        Path path = dne.toPath();
-
-        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("-w--w--w-"));
-        return path;
     }
 
     @Override
     public Publisher<ByteBuffer> createPublisher(long elements) {
-        if (elements < ELEMENTS) return AsyncRequestProvider.fromFile(testFile);
-        else return null; // we don't support more elements
+        if (elements < MAX_ELEMENTS) {
+            Path testFile = createFileWith(elements);
+            return AsyncRequestProvider.fromFile(testFile);
+        } else {
+            return null; // we don't support more elements
+        }
+    }
+
+    private Path createFileWith(long elements) {
+        try {
+            // mock file system:
+            final FileSystem fs = Jimfs.newFileSystem(Configuration.unix());
+            final Path testFile = Files.createFile(fs.getPath("/test-file.tmp"));
+            final BufferedWriter writer = Files.newBufferedWriter(testFile);
+
+            final char[] chars = new char[DEFAULT_CHUNK_SIZE];
+            Arrays.fill(chars, 'A');
+
+            for (int i = 0; i < elements; i++) {
+                writer.write(chars); // write one chunk
+            }
+            return testFile;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public Publisher<ByteBuffer> createFailedPublisher() {
+        Path unreadable = createUnreadableFile();
         // tests properly failing on non existing files:
         return AsyncRequestProvider.fromFile(unreadable);
+    }
+
+    private Path createUnreadableFile() {
+        try {
+            File dne = File.createTempFile("prefix", "suffix");
+            dne.deleteOnExit();
+            Path path = dne.toPath();
+
+            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("-w--w--w-"));
+            return path;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -208,6 +208,7 @@ public final class FileAsyncRequestProvider implements AsyncRequestProvider {
 
         @Override
         public void cancel() {
+            this.cancelled = true;
             closeFile();
         }
 

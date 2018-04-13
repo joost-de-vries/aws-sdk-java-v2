@@ -60,7 +60,7 @@ public final class FileAsyncRequestProvider implements AsyncRequestProvider {
 
     @Override
     public void subscribe(Subscriber<? super ByteBuffer> s) {
-        s.onSubscribe(new FileSubscription(file, s, chunkSizeInBytes));
+        new FileSubscription(file, s, chunkSizeInBytes);
     }
 
     /**
@@ -133,18 +133,48 @@ public final class FileAsyncRequestProvider implements AsyncRequestProvider {
      */
     private static class FileSubscription implements Subscription {
 
-        private final AsynchronousFileChannel inputChannel;
+        private AsynchronousFileChannel inputChannel;
         private final Subscriber<? super ByteBuffer> subscriber;
         private final int chunkSize;
 
         private long position = 0;
         private AtomicLong outstandingDemand = new AtomicLong(0);
         private boolean writeInProgress = false;
+        private boolean cancelled = false; // This flag will track whether this `Subscription` is to be considered cancelled or not
 
         private FileSubscription(Path file, Subscriber<? super ByteBuffer> subscriber, int chunkSize) {
-            this.inputChannel = openInputChannel(file);
+            // As per rule 1.09, we need to throw a `java.lang.NullPointerException` if the `Subscriber` is `null`
+            if (subscriber == null) {
+                throw null;
+            }
             this.subscriber = subscriber;
             this.chunkSize = chunkSize;
+
+            try {
+                this.inputChannel = openInputChannel(file);
+
+            } catch (final Throwable t) {
+                subscriber.onSubscribe(new Subscription() { // We need to make sure we signal onSubscribe before onError, obeying rule 1.9
+                    @Override
+                    public void cancel() {
+                    }
+
+                    @Override
+                    public void request(long n) {
+                    }
+                });
+                terminateDueTo(t);
+            }
+
+            if (!cancelled) {
+                // Deal with setting up the subscription with the subscriber
+                try {
+                    subscriber.onSubscribe(this);
+                } catch (final Throwable t) { // Due diligence to obey 2.13
+                    terminateDueTo(new IllegalStateException(subscriber + " violated the Reactive Streams rule 2.13 by throwing an exception from onSubscribe.", t));
+                }
+
+            }
         }
 
         @Override
@@ -152,8 +182,8 @@ public final class FileAsyncRequestProvider implements AsyncRequestProvider {
             if (n < 1) {
                 IllegalArgumentException ex =
                     new IllegalArgumentException(subscriber + " violated the Reactive Streams rule 3.9 by requesting a non-positive number of elements.");
-                subscriber.onError(ex);
-            } else
+                terminateDueTo(ex);
+            } else {
                 try {
                     long initialDemand = outstandingDemand.get();
                     long newDemand = initialDemand + n;
@@ -171,8 +201,9 @@ public final class FileAsyncRequestProvider implements AsyncRequestProvider {
                         }
                     }
                 } catch (Exception e) {
-                    subscriber.onError(e);
+                    terminateDueTo(e);
                 }
+            }
         }
 
         @Override
@@ -211,7 +242,7 @@ public final class FileAsyncRequestProvider implements AsyncRequestProvider {
 
                 @Override
                 public void failed(Throwable exc, ByteBuffer attachment) {
-                    subscriber.onError(exc);
+                    terminateDueTo(exc);
                     closeFile();
                 }
             });
@@ -222,6 +253,15 @@ public final class FileAsyncRequestProvider implements AsyncRequestProvider {
                 inputChannel.close();
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
+            }
+        }
+
+        private void terminateDueTo(final Throwable t) {
+            cancelled = true; // When we signal onError, the subscription must be considered as cancelled, as per rule 1.6
+            try {
+                subscriber.onError(t); // Then we signal the error downstream, to the `Subscriber`
+            } catch (final Throwable t2) { // If `onError` throws an exception, this is a spec violation according to rule 1.9, and all we can do is to log it.
+                (new IllegalStateException(subscriber + " violated the Reactive Streams rule 2.13 by throwing an exception from onError.", t2)).printStackTrace(System.err);
             }
         }
 

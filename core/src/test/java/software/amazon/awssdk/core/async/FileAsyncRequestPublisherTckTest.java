@@ -15,24 +15,21 @@
 
 package software.amazon.awssdk.core.async;
 
-import org.junit.Test;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 import org.reactivestreams.tck.TestEnvironment;
-import software.amazon.awssdk.http.async.SimpleSubscriber;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.List;
 
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
@@ -47,13 +44,13 @@ public class FileAsyncRequestPublisherTckTest extends org.reactivestreams.tck.Pu
     final FileSystem fs = Jimfs.newFileSystem(Configuration.unix());
 
     final Path testFile;
-    final Path doestNotExist;
+    final Path unreadable;
 
     public FileAsyncRequestPublisherTckTest() throws IOException {
         super(new TestEnvironment());
         testFile = Files.createFile(fs.getPath("/test-file.tmp"));
 
-        doestNotExist = new File("does-not-exist").toPath();
+        this.unreadable=createUnreadableFile();
 
         final BufferedWriter writer = Files.newBufferedWriter(testFile);
 
@@ -65,6 +62,15 @@ public class FileAsyncRequestPublisherTckTest extends org.reactivestreams.tck.Pu
         }
     }
 
+    private Path createUnreadableFile() throws IOException {
+        File dne = File.createTempFile("prefix", "suffix");
+        dne.deleteOnExit();
+        Path path = dne.toPath();
+
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("-w--w--w-"));
+        return path;
+    }
+
     @Override
     public Publisher<ByteBuffer> createPublisher(long elements) {
         if (elements < ELEMENTS) return AsyncRequestProvider.fromFile(testFile);
@@ -74,6 +80,6 @@ public class FileAsyncRequestPublisherTckTest extends org.reactivestreams.tck.Pu
     @Override
     public Publisher<ByteBuffer> createFailedPublisher() {
         // tests properly failing on non existing files:
-        return AsyncRequestProvider.fromFile(doestNotExist);
+        return AsyncRequestProvider.fromFile(unreadable);
     }
 }

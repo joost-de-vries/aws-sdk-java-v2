@@ -105,7 +105,7 @@
         <!-- These properties are used by cucumber tests related code -->
         <unitils.version>3.3</unitils.version>
 
-        <!-- Reactive Streams version -->
+        <!-- Reactive Streams version. Required since the one provided as a dep of netty-reactive-streams-http is 1.0 -->
         <reactive-streams.version>1.0.2</reactive-streams.version>
 
         <!-- Sonar -->
